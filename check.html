@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>曼谷行 CHECK 清單</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<main class="page"><div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">CHECKLIST</div>
+    <h1>出發前 CHECK</h1>
+    <p class="sub">行程有沒有訂好、行李有沒有帶齊，勾起來大家都看得到。</p>
+  </header>
+
+  <div id="mode"></div>
+
+  <div class="namebox">
+    <label for="who">我是</label>
+    <input type="text" id="who" placeholder="輸入名字，例如：亞璇" maxlength="12">
+    <span class="hint">打勾時會記下是誰勾的</span>
+  </div>
+
+  <section class="progress" aria-live="polite">
+    <div class="status" id="progressText">載入中…</div>
+    <div class="bar"><i id="progressBar" style="width:0%"></i></div>
+  </section>
+
+  <div id="groups" style="display:flex;flex-direction:column;gap:16px"></div>
+
+  <section class="ed-card">
+    <strong>新增分類</strong>
+    <form id="newGroupForm" class="ed-row">
+      <label class="f" style="flex:1 1 140px" for="ngGroup">分類名稱<input type="text" id="ngGroup" placeholder="例如：伴手禮" required></label>
+      <label class="f" style="flex:2 1 200px" for="ngText">第一個項目<input type="text" id="ngText" placeholder="例如：媽媽要的藥妝" required></label>
+      <button class="btn primary" type="submit">新增</button>
+    </form>
+  </section>
+</div></main>
+
+<script type="module">
+import { configured, getFb, esc, navHtml, store, DEFAULT_CHECKLIST } from './assets/app.js';
+document.getElementById('nav').innerHTML = navHtml('check');
+
+const who = document.getElementById('who');
+who.value = store('tripName') || '';
+who.addEventListener('input', () => store('tripName', who.value.trim()));
+
+let items = [];          // {id, group, text, done, by, order}
+let api = null;          // 寫入方法（雲端或本機）
+const pendingDelete = new Set();
+
+function toast(msg) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2200);
+}
+
+function render() {
+  const total = items.length, done = items.filter((i) => i.done).length;
+  document.getElementById('progressText').textContent = total ? `已完成 ${done} / ${total} 項` : '還沒有項目';
+  document.getElementById('progressBar').style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+
+  const groups = [];
+  items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach((it) => {
+    let g = groups.find((x) => x.name === it.group);
+    if (!g) { g = { name: it.group || '其他', list: [] }; groups.push(g); }
+    g.list.push(it);
+  });
+
+  document.getElementById('groups').innerHTML = groups.map((g, gi) => `
+    <section class="group">
+      <div class="group-h"><h3>${esc(g.name)}</h3><span class="cnt">${g.list.filter((i) => i.done).length}/${g.list.length}</span></div>
+      <ul class="items">${g.list.map((it) => `
+        <li class="item ${it.done ? 'done' : ''}">
+          <input type="checkbox" id="cb-${esc(it.id)}" data-id="${esc(it.id)}" ${it.done ? 'checked' : ''}>
+          <label class="txt" for="cb-${esc(it.id)}"><span>${esc(it.text)}</span>${it.done && it.by ? `<span class="by">${esc(it.by)} 勾選</span>` : ''}</label>
+          <button class="btn small ghost ${pendingDelete.has(it.id) ? 'danger' : ''}" data-del="${esc(it.id)}" aria-label="刪除 ${esc(it.text)}">${pendingDelete.has(it.id) ? '確定刪除' : '✕'}</button>
+        </li>`).join('')}
+      </ul>
+      <form class="addrow" data-group="${esc(g.name)}">
+        <input type="text" id="add-${gi}" placeholder="在「${esc(g.name)}」新增項目" aria-label="在${esc(g.name)}新增項目">
+        <button class="btn small" type="submit">新增</button>
+      </form>
+    </section>`).join('');
+}
+
+document.getElementById('groups').addEventListener('change', (e) => {
+  const id = e.target.dataset.id; if (!id || !api) return;
+  api.toggle(id, e.target.checked, e.target.checked ? (who.value.trim() || '') : '');
+});
+document.getElementById('groups').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-del]')?.dataset.del; if (!id || !api) return;
+  if (pendingDelete.has(id)) { pendingDelete.delete(id); api.remove(id); return; }
+  pendingDelete.add(id); render();
+  setTimeout(() => { if (pendingDelete.delete(id)) render(); }, 3000);
+});
+document.getElementById('groups').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = e.target.querySelector('input'); const text = input.value.trim();
+  if (!text || !api) return;
+  api.add(e.target.dataset.group, text); input.value = '';
+});
+document.getElementById('newGroupForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const g = document.getElementById('ngGroup'), t = document.getElementById('ngText');
+  if (!g.value.trim() || !t.value.trim() || !api) return;
+  api.add(g.value.trim(), t.value.trim()); g.value = ''; t.value = '';
+});
+
+// ---------- 本機模式（還沒設定 Firebase） ----------
+function startLocal(reason) {
+  document.getElementById('mode').innerHTML = `<div class="banner warn"><b>目前只存在這支手機</b><span>${esc(reason)}</span></div>`;
+  items = store('checklist') || DEFAULT_CHECKLIST.map((d, i) => ({ id: 'd' + i, ...d, done: false, by: '' }));
+  const save = () => { store('checklist', items); render(); };
+  api = {
+    toggle: (id, done, by) => { const it = items.find((i) => i.id === id); if (it) { it.done = done; it.by = by; save(); } },
+    add: (group, text) => { items.push({ id: 'l' + Date.now(), group, text, done: false, by: '', order: Date.now() }); save(); },
+    remove: (id) => { items = items.filter((i) => i.id !== id); save(); },
+  };
+  render();
+}
+
+// ---------- 雲端模式（3 人同步） ----------
+async function startCloud() {
+  const fb = await getFb();
+  if (!fb) return startLocal('Firebase 連線失敗，請檢查 firebase-config.js。');
+  const { fs, db, authMod, auth } = fb;
+  try { await authMod.signInAnonymously(auth); }
+  catch (e) { console.error(e); return startLocal('無法登入 Firebase：請在 Firebase 主控台開啟「匿名」登入方式。'); }
+
+  const col = fs.collection(db, 'checklist');
+  let seeded = false;
+  api = {
+    toggle: (id, done, by) => fs.updateDoc(fs.doc(col, id), { done, by, at: fs.serverTimestamp() }).catch(fail),
+    add: (group, text) => fs.addDoc(col, { group, text, done: false, by: '', order: Date.now(), at: fs.serverTimestamp() }).catch(fail),
+    remove: (id) => fs.deleteDoc(fs.doc(col, id)).catch(fail),
+  };
+  fs.onSnapshot(fs.query(col, fs.orderBy('order')), async (snap) => {
+    if (snap.empty && !seeded) {
+      seeded = true;
+      const batch = fs.writeBatch(db);
+      DEFAULT_CHECKLIST.forEach((d, i) => batch.set(fs.doc(col, 'd' + i), { ...d, done: false, by: '' }));
+      await batch.commit().catch(fail);
+      return;
+    }
+    items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    render();
+  }, (err) => { console.error(err); startLocal('讀取雲端清單失敗，請確認 Firestore 規則已發布。'); });
+  document.getElementById('mode').innerHTML = `<div class="banner"><span>已連線，大家打勾會即時同步。</span></div>`;
+}
+function fail(e) { console.error(e); toast('儲存失敗，請稍後再試'); }
+
+configured ? startCloud() : startLocal('還沒設定 Firebase，打勾只會記在這支手機的瀏覽器裡。設定好之後 3 個人就會同步。');
+</script>
+</body>
+</html>

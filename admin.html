@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>曼谷行 編輯後台</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<main class="page"><div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">ADMIN</div>
+    <h1>編輯行程</h1>
+    <p class="sub">改完按最下面的「儲存」，行程頁會馬上更新。</p>
+  </header>
+  <div id="auth"></div>
+  <div id="editor" style="display:flex;flex-direction:column;gap:20px"></div>
+  <div class="savebar" id="savebar" hidden>
+    <span class="status" id="dirty" style="margin-right:auto;align-self:center"></span>
+    <button class="btn" id="resetBtn" type="button">還原成上次儲存</button>
+    <button class="btn primary" id="saveBtn" type="button">儲存</button>
+  </div>
+</div></main>
+
+<script type="module">
+import { configured, getFb, esc, navHtml, DEFAULT_TRIP } from './assets/app.js';
+document.getElementById('nav').innerHTML = navHtml('admin');
+
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let trip = clone(DEFAULT_TRIP), saved = clone(DEFAULT_TRIP), fb = null, user = null;
+
+function toast(msg) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2400);
+}
+const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); (ks.length ? getPath(o, ks.join('.')) : o)[last] = v; }
+function parent(p) { const ks = p.split('.'); const i = Number(ks.pop()); return { arr: ks.length ? getPath(trip, ks.join('.')) : trip, i }; }
+
+// ---------- 表單片段 ----------
+const field = (path, label, opts = {}) => {
+  const v = getPath(trip, path) ?? '';
+  const id = 'f-' + path.replace(/\./g, '-');
+  return opts.area
+    ? `<label class="f" for="${id}" style="${opts.style || ''}">${label}<textarea id="${id}" data-path="${path}" ${opts.kind ? `data-kind="${opts.kind}"` : ''}>${esc(v)}</textarea></label>`
+    : `<label class="f" for="${id}" style="${opts.style || ''}">${label}<input type="text" id="${id}" data-path="${path}" value="${esc(v)}"></label>`;
+};
+const ctrl = (path, len) => {
+  const i = Number(path.split('.').pop());
+  return `<button class="btn small ghost" type="button" data-act="up" data-p="${path}" ${i === 0 ? 'disabled' : ''} aria-label="上移">↑</button>
+    <button class="btn small ghost" type="button" data-act="down" data-p="${path}" ${i === len - 1 ? 'disabled' : ''} aria-label="下移">↓</button>
+    <button class="btn small ghost danger" type="button" data-act="del" data-p="${path}">刪除</button>`;
+};
+const linksText = (links) => (links || []).map((l) => `${l.label || ''} | ${l.url || ''}`).join('\n');
+
+function render() {
+  const t = trip;
+  const cards = (t.cards || []).map((c, i) => `
+    <div class="ed-stop">
+      <div class="ed-head"><strong>${esc(c.k || '卡片 ' + (i + 1))}</strong>${ctrl('cards.' + i, t.cards.length)}</div>
+      <div class="ed-grid">
+        ${field(`cards.${i}.k`, '小標')}${field(`cards.${i}.v`, '名稱')}
+        ${field(`cards.${i}.d`, '說明')}${field(`cards.${i}.price`, '價格')}
+        ${field(`cards.${i}.linkLabel`, '連結文字')}${field(`cards.${i}.url`, '連結網址')}
+      </div>
+    </div>`).join('');
+
+  const days = (t.days || []).map((d, di) => `
+    <section class="ed-card">
+      <div class="ed-head"><strong>${esc(d.date || '第 ' + (di + 1) + ' 天')}　${esc(d.title || '')}</strong>${ctrl('days.' + di, t.days.length)}</div>
+      <div class="ed-grid">${field(`days.${di}.date`, '日期')}${field(`days.${di}.title`, '當天主題')}${field(`days.${di}.tag`, '標籤（例如：包車 10 小時）')}</div>
+      ${(d.stops || []).map((s, si) => `
+        <div class="ed-stop">
+          <div class="ed-head"><strong>${esc(s.time || '')}　${esc(s.name || '新行程')}</strong>${ctrl(`days.${di}.stops.${si}`, d.stops.length)}</div>
+          <div class="ed-grid">${field(`days.${di}.stops.${si}.time`, '時間')}${field(`days.${di}.stops.${si}.name`, '地點／活動')}</div>
+          ${field(`days.${di}.stops.${si}.desc`, '說明')}
+          ${field(`days.${di}.stops.${si}.links`, '連結（一行一個，格式：名稱 | 網址）', { area: true, kind: 'links' })}
+        </div>`).join('')}
+      <div><button class="btn small" type="button" data-act="addStop" data-p="days.${di}">＋ 新增這天的行程</button></div>
+    </section>`).join('');
+
+  const budget = (t.budget || []).map((b, i) => `
+    <div class="ed-row">
+      ${field(`budget.${i}.item`, '項目', { style: 'flex:1 1 90px' })}
+      ${field(`budget.${i}.desc`, '說明', { style: 'flex:3 1 200px' })}
+      ${field(`budget.${i}.amount`, '金額', { style: 'flex:1 1 110px' })}
+      <div style="display:flex">${ctrl('budget.' + i, t.budget.length)}</div>
+    </div>`).join('');
+
+  document.getElementById('editor').innerHTML = `
+    <section class="ed-card"><strong>標題</strong>
+      <div class="ed-grid">${field('eyebrow', '小字標題')}${field('title', '大標題')}</div>
+      ${field('subtitle', '副標題', { area: true })}
+    </section>
+    <section class="ed-card"><strong>機票與住宿</strong>${cards}
+      <div><button class="btn small" type="button" data-act="addCard">＋ 新增卡片</button></div>
+    </section>
+    <h2>每日行程</h2>${days}
+    <div><button class="btn" type="button" data-act="addDay">＋ 新增一天</button></div>
+    <section class="ed-card"><strong>預算</strong>${budget}
+      <div><button class="btn small" type="button" data-act="addBudget">＋ 新增預算項目</button></div>
+      <div class="ed-row">${field('total.desc', '合計說明', { style: 'flex:3 1 200px' })}${field('total.amount', '合計金額', { style: 'flex:1 1 120px' })}</div>
+    </section>
+    <section class="ed-card"><strong>提醒事項</strong>
+      ${field('notes', '一行一條', { area: true, kind: 'lines' })}
+      ${field('footer', '頁尾說明', { area: true })}
+    </section>`;
+
+  // textarea 的特殊欄位要顯示成文字
+  document.querySelectorAll('textarea[data-kind="links"]').forEach((el) => { el.value = linksText(getPath(trip, el.dataset.path)); });
+  document.querySelectorAll('textarea[data-kind="lines"]').forEach((el) => { el.value = (getPath(trip, el.dataset.path) || []).join('\n'); });
+  markDirty();
+}
+
+function markDirty() {
+  const dirty = JSON.stringify(trip) !== JSON.stringify(saved);
+  document.getElementById('dirty').textContent = dirty ? '有尚未儲存的修改' : '已是最新';
+}
+
+const ed = document.getElementById('editor');
+ed.addEventListener('input', (e) => {
+  const p = e.target.dataset.path; if (!p) return;
+  const kind = e.target.dataset.kind; let v = e.target.value;
+  if (kind === 'links') v = v.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [label, ...rest] = l.split('|'); return { label: label.trim(), url: rest.join('|').trim() };
+  });
+  if (kind === 'lines') v = v.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (p.startsWith('total.') && !trip.total) trip.total = { desc: '', amount: '' };
+  setPath(trip, p, v); markDirty();
+});
+ed.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, p = b.dataset.p;
+  if (act === 'up' || act === 'down' || act === 'del') {
+    const { arr, i } = parent(p);
+    if (act === 'del') {
+      if (b.dataset.armed) arr.splice(i, 1);
+      else { b.dataset.armed = '1'; b.textContent = '確定刪除'; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = '刪除'; } }, 3000); return; }
+    } else {
+      const j = act === 'up' ? i - 1 : i + 1; if (j < 0 || j >= arr.length) return;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  if (act === 'addStop') getPath(trip, p).stops.push({ time: '', name: '', desc: '', links: [] });
+  if (act === 'addDay') (trip.days ||= []).push({ date: '', title: '', tag: '', stops: [{ time: '', name: '', desc: '', links: [] }] });
+  if (act === 'addCard') (trip.cards ||= []).push({ k: '', v: '', d: '', price: '', linkLabel: '', url: '' });
+  if (act === 'addBudget') (trip.budget ||= []).push({ item: '', desc: '', amount: '' });
+  render();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => { trip = clone(saved); render(); });
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (!fb || !user) return toast('請先登入');
+  const btn = document.getElementById('saveBtn'); btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    await fb.fs.setDoc(fb.fs.doc(fb.db, 'trip', 'main'), { ...trip, updatedAt: fb.fs.serverTimestamp(), updatedBy: user.email || '' });
+    delete trip.updatedAt; delete trip.updatedBy;
+    saved = clone(trip); markDirty(); toast('已儲存，行程頁已更新');
+  } catch (e) {
+    console.error(e);
+    toast(e.code === 'permission-denied' ? '這個帳號沒有編輯權限，請檢查 firestore.rules 裡的 email' : '儲存失敗，請稍後再試');
+  } finally { btn.disabled = false; btn.textContent = '儲存'; }
+});
+window.addEventListener('beforeunload', (e) => { if (JSON.stringify(trip) !== JSON.stringify(saved)) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---------- 登入 ----------
+const authBox = document.getElementById('auth');
+async function start() {
+  if (!configured) {
+    authBox.innerHTML = `<div class="banner warn"><b>還沒設定 Firebase</b><span>依照 README 的步驟建立 Firebase 專案、把設定貼進 firebase-config.js 之後，就能在這裡登入編輯。下面先顯示內建行程。</span></div>`;
+    render(); return;
+  }
+  fb = await getFb();
+  if (!fb) { authBox.innerHTML = `<div class="banner warn">Firebase 連線失敗，請檢查 firebase-config.js。</div>`; return; }
+  const { authMod, auth, fs, db } = fb;
+  authMod.onAuthStateChanged(auth, async (u) => {
+    user = u && !u.isAnonymous ? u : null;
+    if (!user) {
+      document.getElementById('savebar').hidden = true; document.getElementById('editor').innerHTML = '';
+      authBox.innerHTML = `<div class="banner"><span>用 Google 帳號登入後才能編輯。</span><div><button class="btn primary" id="login" type="button">用 Google 登入</button></div></div>`;
+      document.getElementById('login').onclick = () => authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider())
+        .catch((e) => { console.error(e); toast('登入失敗：' + (e.code || '')); });
+      return;
+    }
+    authBox.innerHTML = `<div class="banner"><span>已登入：${esc(user.email || user.displayName || '')}　<button class="btn small" id="logout" type="button">登出</button></span></div>`;
+    document.getElementById('logout').onclick = () => authMod.signOut(auth);
+    const snap = await fs.getDoc(fs.doc(db, 'trip', 'main')).catch(() => null);
+    if (snap && snap.exists()) { const d = snap.data(); delete d.updatedAt; delete d.updatedBy; trip = d; }
+    else trip = clone(DEFAULT_TRIP);
+    saved = snap && snap.exists() ? clone(trip) : {};
+    document.getElementById('savebar').hidden = false;
+    render();
+  });
+}
+start();
+</script>
+</body>
+</html>

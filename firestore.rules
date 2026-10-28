@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 行程：任何人都能看；只有下面列出的 Google 帳號能編輯
+    // ↓↓↓ 把 you@gmail.com 換成你自己（和其他要能編輯的人）的 Gmail ↓↓↓
+    match /trip/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.email in ['you@gmail.com'];
+    }
+
+    // CHECK 清單：開網站的人（匿名登入）都能看、打勾、新增、刪除
+    match /checklist/{item} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && (request.resource == null
+                       || (request.resource.data.text is string
+                           && request.resource.data.text.size() <= 200));
+    }
+  }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>曼谷 12/2–12/6 行程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<main class="page"><div class="wrap" id="app"><p class="status">載入行程中…</p></div></main>
+
+<script type="module">
+import { watchTrip, esc, safeUrl, navHtml } from './assets/app.js';
+document.getElementById('nav').innerHTML = navHtml('trip');
+
+const linkA = (l) => {
+  const u = safeUrl(l.url);
+  return u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(l.label || '連結')} ↗</a>` : '';
+};
+
+function render(t) {
+  document.title = (t.title || '曼谷行程');
+  const cards = (t.cards || []).map((c) => `
+    <div class="fact">
+      <div class="k">${esc(c.k)}</div>
+      <div class="v">${esc(c.v)}</div>
+      ${c.d ? `<div class="d">${esc(c.d)}</div>` : ''}
+      ${c.price ? `<div class="price">${esc(c.price)}</div>` : ''}
+      ${safeUrl(c.url) ? `<a href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">${esc(c.linkLabel || '查看')} ↗</a>` : ''}
+    </div>`).join('');
+
+  const days = (t.days || []).map((d) => `
+    <article class="day">
+      <div class="day-h"><span class="date">${esc(d.date)}</span><h3>${esc(d.title)}</h3>${d.tag ? `<span class="chip">${esc(d.tag)}</span>` : ''}</div>
+      <ol class="stops">${(d.stops || []).map((s) => {
+        const links = (s.links || []).map(linkA).filter(Boolean).join('');
+        return `<li class="stop"><div class="t">${esc(s.time)}</div><div class="what"><b>${esc(s.name)}</b>${s.desc ? `<span>${esc(s.desc)}</span>` : ''}${links ? `<div class="links">${links}</div>` : ''}</div></li>`;
+      }).join('')}</ol>
+    </article>`).join('');
+
+  const budget = (t.budget || []).map((b) => `<tr><td>${esc(b.item)}</td><td>${esc(b.desc)}</td><td class="num">${esc(b.amount)}</td></tr>`).join('');
+  const total = t.total ? `<tr class="total"><td>合計</td><td>${esc(t.total.desc)}</td><td class="num">${esc(t.total.amount)}</td></tr>` : '';
+  const notes = (t.notes || []).filter(Boolean).map((n) => `<div>${esc(n)}</div>`).join('');
+
+  document.getElementById('app').innerHTML = `
+    <header class="hero">
+      ${t.eyebrow ? `<div class="eyebrow">${esc(t.eyebrow)}</div>` : ''}
+      <h1>${esc(t.title)}</h1>
+      ${t.subtitle ? `<p class="sub">${esc(t.subtitle)}</p>` : ''}
+    </header>
+    ${cards ? `<section><h2>機票與住宿</h2><div class="facts">${cards}</div></section>` : ''}
+    <section><h2>每日行程</h2>${days}</section>
+    ${budget || total ? `<section><h2>預算</h2><div class="tablewrap"><table>
+      <thead><tr><th>項目</th><th>說明</th><th class="num">金額 (NT$)</th></tr></thead>
+      <tbody>${budget}${total}</tbody></table></div>
+      ${notes ? `<div class="note"><div><b>訂之前確認</b></div>${notes}</div>` : ''}</section>` : ''}
+    ${t.footer ? `<footer>${esc(t.footer)}</footer>` : ''}`;
+}
+
+watchTrip((t) => render(t));
+</script>
+</body>
+</html>
