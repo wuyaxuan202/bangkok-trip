@@ -46,7 +46,7 @@ export function navHtml(active) {
   const item = (href, key, label) =>
     `<a href="${href}" class="${active === key ? 'on' : ''}" ${active === key ? 'aria-current="page"' : ''}>${label}</a>`;
   return `<nav class="topnav"><div class="topnav-in">
-    <span class="brand">曼谷行</span>
+    <span class="brand"><span class="ele" aria-hidden="true">🐘</span>曼谷行</span>
     <div class="tabs">${item('index.html', 'trip', '行程')}${item('check.html', 'check', 'CHECK')}${item('admin.html', 'admin', '編輯')}</div>
   </div></nav>`;
 }
