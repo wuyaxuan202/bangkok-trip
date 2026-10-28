@@ -71,6 +71,8 @@ const CSS = `
 .mascot-bubble .say{font-size:12.5px;color:var(--red,#e3343f);font-weight:700}
 .mascot-bubble .zh{font-weight:700}
 .mascot-bubble .tip{display:block;margin-top:4px;font-size:11px;color:var(--muted,#5d6475)}
+.mascot-bubble .replay{margin-top:6px;border:2px solid var(--accent,#2457e6);background:transparent;color:var(--accent,#2457e6);border-radius:999px;padding:2px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mascot-bubble .replay:active{transform:translateY(1px)}
 .tuktuk-lane{position:relative;height:46px;margin-top:4px;overflow:hidden;border-bottom:2px dashed var(--line,#dde3ee)}
 .tuktuk{position:absolute;bottom:2px;width:78px;height:45px;left:-90px;animation:drive 9s linear infinite}
 .tuktuk::after{content:"";position:absolute;left:-14px;bottom:10px;width:10px;height:10px;border-radius:50%;background:var(--line,#dde3ee);box-shadow:-10px -4px 0 -2px var(--line,#dde3ee);animation:puff .6s linear infinite}
@@ -85,6 +87,28 @@ const CSS = `
 
 let bubble, btn, hideTimer, idx = Math.floor(Math.random() * PHRASES.length);
 
+// ---------- 泰文發音（用手機／電腦內建的語音，不用另外下載） ----------
+const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+let thaiVoice = null;
+function pickVoice() {
+  if (!synth) return;
+  const vs = synth.getVoices();
+  thaiVoice = vs.find((v) => /^th(-|_|$)/i.test(v.lang)) || null;
+}
+if (synth) { pickVoice(); synth.addEventListener?.('voiceschanged', pickVoice); }
+function speakThai(text) {
+  if (!synth) return false;
+  if (!thaiVoice) pickVoice();
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'th-TH';
+  if (thaiVoice) u.voice = thaiVoice;
+  u.rate = 0.8;
+  synth.speak(u);
+  return !!thaiVoice || /iPhone|iPad|Android/i.test(navigator.userAgent);
+}
+const noVoiceTip = '<span class="tip">這台裝置沒有泰文語音，可以在系統設定加裝「泰文」語音，或改用手機聽</span>';
+
 function say(html, ms = 4200) {
   bubble.innerHTML = html;
   bubble.classList.add('show');
@@ -97,19 +121,27 @@ export function initMascot() {
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
   const wrap = document.createElement('div'); wrap.className = 'mascot';
   wrap.innerHTML = `<div class="mascot-bubble" role="status" aria-live="polite"></div>
-    <button class="mascot-btn" type="button" aria-label="點小象學一句泰文">${ELEPHANT}</button>`;
+    <button class="mascot-btn" type="button" aria-label="點小象學一句泰文（會唸出聲音）">${ELEPHANT}</button>`;
   document.body.appendChild(wrap);
   bubble = wrap.querySelector('.mascot-bubble'); btn = wrap.querySelector('.mascot-btn');
   btn.addEventListener('animationend', (e) => { if (e.animationName === 'mascotJump') btn.classList.remove('jump'); });
   btn.addEventListener('click', () => {
     const p = PHRASES[idx++ % PHRASES.length];
     jump();
-    say(`<div class="th" lang="th">${p.th}</div><div class="say">${p.say}</div><div class="zh">${p.zh}</div><span class="tip">女生句尾說 ka，男生說 krap</span>`, 6000);
+    const ok = speakThai(p.th);
+    say(`<div class="th" lang="th">${p.th}</div><div class="say">${p.say}</div><div class="zh">${p.zh}</div>
+      <button class="replay" type="button" data-th="${p.th}">🔊 再聽一次</button>
+      ${ok || !synth ? '' : noVoiceTip}<span class="tip">女生句尾說 ka，男生說 krap</span>`, 8000);
   });
-  setTimeout(() => say('<div class="zh">สวัสดีค่ะ！我是阿象 🐘</div><span class="tip">點我學一句泰文</span>', 3800), 900);
+  bubble.addEventListener('click', (e) => {
+    const r = e.target.closest('.replay'); if (!r) return;
+    speakThai(r.dataset.th);
+    clearTimeout(hideTimer); hideTimer = setTimeout(() => bubble.classList.remove('show'), 6000);
+  });
+  setTimeout(() => say('<div class="zh">สวัสดีค่ะ！我是阿象 🐘</div><span class="tip">點我學一句泰文，會唸給你聽 🔊</span>', 3800), 900);
 
   window.addEventListener('trip:cheer', () => { jump(); say(`<div class="zh">${CHEERS[Math.floor(Math.random() * CHEERS.length)]}</div>`, 1800); });
-  window.addEventListener('trip:alldone', () => { jump(); confetti(); say('<div class="zh">全部準備好了！</div><div class="th" lang="th">ไปเที่ยวกัน！</div><div class="say">pai tiao gan</div><span class="tip">一起去玩吧！</span>', 6500); });
+  window.addEventListener('trip:alldone', () => { jump(); confetti(); speakThai('ไปเที่ยวกัน'); say('<div class="zh">全部準備好了！</div><div class="th" lang="th">ไปเที่ยวกัน！</div><div class="say">pai tiao gan</div><span class="tip">一起去玩吧！</span>', 6500); });
 }
 
 export function tuktukLane() {
