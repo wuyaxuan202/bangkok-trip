@@ -16,6 +16,8 @@
 
 <script type="module">
 import { watchTrip, esc, safeUrl, navHtml } from './assets/app.js';
+import { initMascot, tuktukLane } from './assets/mascot.js';
+initMascot();
 document.getElementById('nav').innerHTML = navHtml('trip');
 
 const linkA = (l) => {
@@ -52,6 +54,7 @@ function render(t) {
       ${t.eyebrow ? `<div class="eyebrow">${esc(t.eyebrow)}</div>` : ''}
       <h1>${esc(t.title)}</h1>
       ${t.subtitle ? `<p class="sub">${esc(t.subtitle)}</p>` : ''}
+      ${tuktukLane()}
     </header>
     ${cards ? `<section><h2>機票與住宿</h2><div class="facts">${cards}</div></section>` : ''}
     <section><h2>每日行程</h2><div class="days">${days}</div></section>
