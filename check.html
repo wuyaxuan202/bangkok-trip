@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>曼谷行 CHECK 清單</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -61,7 +63,7 @@ function toast(msg) {
 
 function render() {
   const total = items.length, done = items.filter((i) => i.done).length;
-  document.getElementById('progressText').textContent = total ? `已完成 ${done} / ${total} 項` : '還沒有項目';
+  document.getElementById('progressText').textContent = total ? (done===total ? `全部準備好了，出發囉！ ${done} / ${total}` : `已完成 ${done} / ${total} 項，加油！`) : '還沒有項目';
   document.getElementById('progressBar').style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
 
   const groups = [];
