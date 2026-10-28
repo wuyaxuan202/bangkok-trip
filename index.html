@@ -54,7 +54,7 @@ function render(t) {
       ${t.subtitle ? `<p class="sub">${esc(t.subtitle)}</p>` : ''}
     </header>
     ${cards ? `<section><h2>機票與住宿</h2><div class="facts">${cards}</div></section>` : ''}
-    <section><h2>每日行程</h2>${days}</section>
+    <section><h2>每日行程</h2><div class="days">${days}</div></section>
     ${budget || total ? `<section><h2>預算</h2><div class="tablewrap"><table>
       <thead><tr><th>項目</th><th>說明</th><th class="num">金額 (NT$)</th></tr></thead>
       <tbody>${budget}${total}</tbody></table></div>
