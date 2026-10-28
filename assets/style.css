@@ -1,19 +1,6 @@
-/* 曼谷行：藍＋紅＋黑，圓體字、圓角卡片；手機一欄、電腦兩欄 */
+/* 曼谷行：黑底＋藍紅，圓體字、圓角卡片；手機一欄、電腦兩欄 */
 :root{
-  --bg:#f3f5fa; --bg-dot:#e1e7f3; --surface:#ffffff; --fg:#14161c; --muted:#5d6475; --line:#dde3ee;
-  --accent:#2457e6; --accent-deep:#1a3fb0; --accent-fg:#ffffff;
-  --red:#e3343f; --red-deep:#b4222c; --red-soft:#fde8ea;
-  --ink:#14161c; --ink-fg:#ffffff;
-  --mint:#2457e6; --mint-soft:#e7eefe; --mango:#14161c; --mango-soft:#eef0f4;
-  --marigold:#e3343f; --marigold-soft:#fde8ea; --link:#2457e6;
-  --ok:#2457e6; --danger:#e3343f;
-  --shadow:0 4px 0 rgba(20,22,28,.06), 0 10px 24px rgba(36,87,230,.07);
-  --maxw:760px;
-  --f-body:"Huninn","Chiron GoRound TC","Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
-  --f-mono:"Huninn","Chiron GoRound TC","Noto Sans TC",ui-rounded,system-ui,sans-serif;
-  color-scheme:light;
-}
-@media (prefers-color-scheme:dark){:root{
+
   --bg:#0c0e13; --bg-dot:#171b24; --surface:#151922; --fg:#eef1f7; --muted:#9aa3b5; --line:#262c38;
   --accent:#5b86ff; --accent-deep:#3d6cf2; --accent-fg:#0c0e13;
   --red:#ff5a63; --red-deep:#e3343f; --red-soft:#3a1a1e;
@@ -22,7 +9,11 @@
   --marigold:#ff5a63; --marigold-soft:#3a1a1e; --link:#7fa0ff;
   --ok:#5b86ff; --danger:#ff5a63;
   --shadow:0 4px 0 rgba(0,0,0,.35), 0 10px 24px rgba(0,0,0,.3);
-  color-scheme:dark}}
+  --maxw:760px;
+  --f-body:"Huninn","Chiron GoRound TC","Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-mono:"Huninn","Chiron GoRound TC","Noto Sans TC",ui-rounded,system-ui,sans-serif;
+  color-scheme:dark;
+}
 @media (min-width:960px){:root{--maxw:1100px}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
