@@ -29,7 +29,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;color:var(--fg);font-family:var(--f-body);font-size:15.5px;line-height:1.75;
   background-color:var(--bg);
   background-image:radial-gradient(var(--bg-dot) 1.6px, transparent 1.6px);background-size:22px 22px}
-.page{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 72px}
+.page{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 140px}
 .wrap{max-width:var(--maxw);margin:0 auto;display:flex;flex-direction:column;gap:30px}
 h1,h2,h3{text-wrap:balance;margin:0;line-height:1.35}
 a{color:var(--link);text-underline-offset:3px;text-decoration-thickness:1.5px;text-decoration-style:wavy;text-decoration-color:color-mix(in srgb,var(--link) 45%,transparent)}
@@ -52,9 +52,8 @@ button,input,textarea,select{font:inherit;color:inherit}
 .eyebrow{display:inline-flex;align-self:flex-start;font-size:12px;letter-spacing:.14em;color:var(--accent-deep);font-weight:900;
   background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:2px 12px}
 header.hero{display:flex;flex-direction:column;gap:10px;padding:22px 22px 24px;background:var(--surface);border-radius:28px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-header.hero::after{content:"🐘";position:absolute;right:18px;bottom:6px;font-size:54px;opacity:.9;transform:scaleX(-1)}
-h1{font-size:clamp(28px,6.5vw,44px);font-weight:900;letter-spacing:.02em;color:var(--fg);padding-right:56px}
-.sub{color:var(--muted);margin:0;padding-right:56px}
+h1{font-size:clamp(28px,6.5vw,44px);font-weight:900;letter-spacing:.02em;color:var(--fg)}
+.sub{color:var(--muted);margin:0}
 section{display:flex;flex-direction:column;gap:14px}
 h2{font-size:21px;font-weight:900;display:flex;align-items:center;gap:8px}
 h2::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:16px 0 0 var(--red);margin-right:18px}
@@ -163,8 +162,6 @@ ul.items{list-style:none;margin:0;padding:6px 0}
 @media (max-width:480px){
   .stop{grid-template-columns:58px 1fr;padding-inline:14px}
   .day-h,.item,.group-h,.addrow{padding-inline:14px}
-  header.hero::after{font-size:40px}
-  h1,.sub{padding-right:40px}
 }
 /* 電腦版：加寬並改成兩欄 */
 .days,#groups{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
